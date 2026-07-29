@@ -10,7 +10,8 @@ export default defineAppConfig({
     navigationBarBackgroundColor: '#1a1a2e',
     navigationBarTitleText: '棋牌游戏平台',
     navigationBarTextStyle: 'white',
-    backgroundColor: '#0f0f1e'
+    backgroundColor: '#0f0f1e',
+    pageOrientation: 'auto'
   },
   tabBar: {
     color: '#888',
@@ -27,5 +28,12 @@ export default defineAppConfig({
         text: '我的'
       }
     ]
+  },
+  requiredBackgroundModes: ['audio'],
+  networkTimeout: {
+    request: 10000,
+    connectSocket: 10000,
+    uploadFile: 10000,
+    downloadFile: 10000
   }
 })

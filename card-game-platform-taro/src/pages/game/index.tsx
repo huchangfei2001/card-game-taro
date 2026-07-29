@@ -828,156 +828,299 @@ function strikeDarken(hex: string): string {
   return `rgb(${Math.max(0, r - 40)},${Math.max(0, g - 40)},${Math.max(0, b - 40)})`;
 }
 
+// Simplified but playable Strikers 1945
 function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
   const [, force] = useState(0)
   const sRef = useRef<S1945State>(initS1945())
+  const keysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const id = setInterval(() => {
-      const s = sRef.current;
-      if (!s || s.gameOver) return;
-      sRef.current = tickS1945(s, 400, 640);
-      force(n => n + 1);
-    }, 40);
-    return () => clearInterval(id);
-  }, []);
+      const s = sRef.current
+      if (!s || s.gameOver) return
+      
+      // Handle continuous movement
+      if (keysRef.current.has('l')) sRef.current = movePlayer(s, -6, 0)
+      else if (keysRef.current.has('r')) sRef.current = movePlayer(s, 6, 0)
+      else if (keysRef.current.has('u')) sRef.current = movePlayer(s, 0, -6)
+      else if (keysRef.current.has('d')) sRef.current = movePlayer(s, 0, 6)
+      
+      sRef.current = tickS1945(s, 400, 640)
+      force(n => n + 1)
+    }, 35)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
     const fn = () => {
       try {
-        const q = Taro.createSelectorQuery();
+        const q = Taro.createSelectorQuery()
         q.select('#strikersCanvas').node().exec((res: any) => {
-          if (!res?.[0]?.node) return;
-          const canvas = res[0].node;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return;
-          const W = canvas.width, H = canvas.height;
-          const s = sRef.current;
+          if (!res?.[0]?.node) return
+          const canvas = res[0].node
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
+          const W = canvas.width, H = canvas.height
+          const s = sRef.current
           
-          // Sky background
-          const grd = ctx.createLinearGradient(0, 0, 0, H);
-          grd.addColorStop(0, '#1a3a5c');
-          grd.addColorStop(1, '#2a5a8c');
-          ctx.fillStyle = grd;
-          ctx.fillRect(0, 0, W, H);
+          // Animated gradient sky background
+          const time = Date.now() / 1000
+          const grd = ctx.createLinearGradient(0, 0, 0, H)
+          grd.addColorStop(0, `hsl(${200 + Math.sin(time) * 10}, 60%, ${25 + Math.sin(time * 2) * 5}%)`)
+          grd.addColorStop(0.5, `hsl(${210 + Math.cos(time) * 5}, 50%, ${35 + Math.sin(time * 1.5) * 5}%)`)
+          grd.addColorStop(1, `hsl(${180 + Math.sin(time * 0.5) * 15}, 70%, ${45 + Math.sin(time) * 10}%)`)
+          ctx.fillStyle = grd
+          ctx.fillRect(0, 0, W, H)
 
-          // Scrolling clouds
-          ctx.fillStyle = 'rgba(255,255,255,0.15)';
-          const cloudY = ((Date.now() / 50 + s.scrollY * 2) % (H + 60)) - 30;
-          for (let i = 0; i < 5; i++) {
-            const cx = ((i * 97 + Date.now() / 80) % (W + 80)) - 40;
-            ctx.beginPath();
-            ctx.arc(cx, cloudY + i * 40, 20 + (i % 3) * 8, 0, Math.PI * 2);
-            ctx.fill();
+          // Moving clouds
+          ctx.fillStyle = 'rgba(255,255,255,0.12)'
+          for (let i = 0; i < 8; i++) {
+            const cx = ((i * 113 + time * 30) % (W + 100)) - 50
+            const cy = 60 + i * 35 + Math.sin(i) * 20
+            ctx.beginPath()
+            ctx.arc(cx, cy, 25 + (i % 3) * 12, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.beginPath()
+            ctx.arc(cx + 20, cy + 10, 18 + (i % 2) * 8, 0, Math.PI * 2)
+            ctx.fill()
           }
 
-          const drawPlane = (x: number, y: number, size: number, color: string, isBoss: boolean) => {
-            ctx.fillStyle = color;
-            // Body
-            ctx.beginPath();
-            ctx.ellipse(x, y, size * 0.3, size * 0.7, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Wings
-            ctx.fillRect(x - size * 0.8, y - size * 0.1, size * 1.6, size * 0.2);
-            // Tail
-            ctx.fillRect(x - size * 0.15, y + size * 0.5, size * 0.3, size * 0.3);
-            if (isBoss) {
-              ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
-              ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI * 2); ctx.stroke();
-              ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 1;
-              ctx.beginPath(); ctx.arc(x, y, size + 5, 0, Math.PI * 2); ctx.stroke();
-            }
-          };
+          // Ground/sea
+          ctx.fillStyle = '#1a4a6e'
+          ctx.fillRect(0, H - 30, W, 30)
 
-          const drawEnemyShip = (e: SEnemy) => {
-            const hpRatio = e.hp / e.maxHp;
-            drawPlane(e.x, e.y, e.size, e.color, e.type === 'boss');
-            // HP bar
-            ctx.fillStyle = '#333';
-            ctx.fillRect(e.x - e.size, e.y - e.size - 8, e.size * 2, 4);
-            ctx.fillStyle = hpRatio > 0.5 ? '#4CAF50' : hpRatio > 0.25 ? '#ff9800' : '#f44336';
-            ctx.fillRect(e.x - e.size, e.y - e.size - 8, e.size * 2 * hpRatio, 4);
-          };
-
-          // Player
-          const p = s.player;
-          if (p.invincible > 0 && Math.floor(p.invincible / 4) % 2 === 0) {
-            ctx.globalAlpha = 0.4;
+          // Draw player plane - detailed fighter jet
+          const p = s.player
+          const px = Math.max(20, Math.min(W - 20, p.x))
+          const py = Math.max(80, Math.min(H - 60, p.y))
+          
+          if (p.invincible > 0 && Math.floor(p.invincible / 3) % 2 === 0) {
+            ctx.globalAlpha = 0.5
           }
-          drawPlane(p.x, p.y, 15, '#3498db', false);
-          // Engine flame
-          ctx.fillStyle = '#ff6600';
-          ctx.beginPath(); ctx.moveTo(p.x - 4, p.y + 12); ctx.lineTo(p.x, p.y + 20 + Math.random() * 8); ctx.lineTo(p.x + 4, p.y + 12); ctx.fill();
-          ctx.globalAlpha = 1;
+          
+          // Player glow
+          ctx.shadowColor = '#00ffff'
+          ctx.shadowBlur = 15
+          
+          // Player body
+          ctx.fillStyle = '#3a7ca5'
+          ctx.beginPath()
+          ctx.moveTo(px, py - 20)
+          ctx.lineTo(px - 8, py + 5)
+          ctx.lineTo(px - 3, py + 5)
+          ctx.lineTo(px - 3, py + 15)
+          ctx.lineTo(px + 3, py + 15)
+          ctx.lineTo(px + 3, py + 5)
+          ctx.lineTo(px + 8, py + 5)
+          ctx.closePath()
+          ctx.fill()
+          
+          // Wings
+          ctx.fillStyle = '#2d5a7b'
+          ctx.beginPath()
+          ctx.moveTo(px - 3, py)
+          ctx.lineTo(px - 22, py + 12)
+          ctx.lineTo(px - 3, py + 8)
+          ctx.closePath()
+          ctx.fill()
+          ctx.beginPath()
+          ctx.moveTo(px + 3, py)
+          ctx.lineTo(px + 22, py + 12)
+          ctx.lineTo(px + 3, py + 8)
+          ctx.closePath()
+          ctx.fill()
+          
+          // Cockpit
+          ctx.fillStyle = '#87ceeb'
+          ctx.beginPath()
+          ctx.ellipse(px, py - 5, 4, 8, 0, 0, Math.PI * 2)
+          ctx.fill()
+          
+          // Engine flames
+          const flameLen = 8 + Math.random() * 6
+          ctx.shadowBlur = 0
+          ctx.fillStyle = '#ff6600'
+          ctx.beginPath()
+          ctx.moveTo(px - 2, py + 15)
+          ctx.lineTo(px, py + 15 + flameLen)
+          ctx.lineTo(px + 2, py + 15)
+          ctx.fill()
+          ctx.fillStyle = '#ffff00'
+          ctx.beginPath()
+          ctx.moveTo(px - 1, py + 15)
+          ctx.lineTo(px, py + 15 + flameLen * 0.6)
+          ctx.lineTo(px + 1, py + 15)
+          ctx.fill()
+          ctx.globalAlpha = 1
 
           // Enemies
-          for (const e of s.enemies) drawEnemyShip(e);
-
-          // Player bullets
-          ctx.fillStyle = '#ffff00';
-          ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 6;
-          for (const b of s.bullets) {
-            if (b.isEnemy) continue;
-            ctx.fillStyle = b.size > 5 ? '#ffffff' : '#ffff00';
-            ctx.fillRect(b.x - b.size / 2, b.y - b.size, b.size, b.size * 2);
+          for (const e of s.enemies) {
+            const ex = Math.max(10, Math.min(W - 10, e.x))
+            const ey = Math.max(50, Math.min(H - 40, e.y))
+            
+            // Enemy glow
+            ctx.shadowColor = e.color
+            ctx.shadowBlur = 8
+            ctx.fillStyle = e.color
+            
+            // Enemy body
+            ctx.beginPath()
+            ctx.moveTo(ex, ey + 15)
+            ctx.lineTo(ex - 10, ey - 5)
+            ctx.lineTo(ex + 10, ey - 5)
+            ctx.closePath()
+            ctx.fill()
+            
+            // Enemy wings
+            ctx.fillStyle = '#555'
+            ctx.fillRect(ex - 15, ey, 8, 4)
+            ctx.fillRect(ex + 7, ey, 8, 4)
+            
+            ctx.shadowBlur = 0
+            
+            // HP bar
+            const hpPct = e.hp / e.maxHp
+            ctx.fillStyle = '#333'
+            ctx.fillRect(ex - 12, ey - 15, 24, 4)
+            ctx.fillStyle = hpPct > 0.5 ? '#0f0' : hpPct > 0.25 ? '#ff0' : '#f00'
+            ctx.fillRect(ex - 12, ey - 15, 24 * hpPct, 4)
           }
-          ctx.shadowBlur = 0;
 
-          // Enemy bullets
+          // Bullets - player (yellow streams)
           for (const b of s.bullets) {
-            if (!b.isEnemy) continue;
-            ctx.fillStyle = '#ff4444';
-            ctx.beginPath(); ctx.arc(b.x, b.y, b.size / 2, 0, Math.PI * 2); ctx.fill();
+            if (b.isEnemy) continue
+            ctx.shadowColor = '#ff0'
+            ctx.shadowBlur = 6
+            ctx.fillStyle = b.size > 4 ? '#fff' : '#ff0'
+            ctx.beginPath()
+            ctx.arc(b.x, b.y, b.size > 4 ? 4 : 3, 0, Math.PI * 2)
+            ctx.fill()
+            // Bullet trail
+            ctx.fillStyle = 'rgba(255,255,0,0.3)'
+            ctx.fillRect(b.x - 1, b.y - 8, 2, 8)
+          }
+          ctx.shadowBlur = 0
+
+          // Bullets - enemy (red)
+          for (const b of s.bullets) {
+            if (!b.isEnemy) continue
+            ctx.fillStyle = '#f44'
+            ctx.beginPath()
+            ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2)
+            ctx.fill()
+          }
+
+          // Explosions
+          for (const ex of s.explosions) {
+            const progress = 1 - ex.timer / 30
+            const radius = ex.radius * progress * 2
+            
+            // Outer ring
+            ctx.strokeStyle = `rgba(255, ${150 + progress * 100}, 0, ${1 - progress})`
+            ctx.lineWidth = 3
+            ctx.beginPath()
+            ctx.arc(ex.x, ex.y, radius, 0, Math.PI * 2)
+            ctx.stroke()
+            
+            // Inner fire
+            const grad = ctx.createRadialGradient(ex.x, ex.y, 0, ex.x, ex.y, radius * 0.7)
+            grad.addColorStop(0, `rgba(255,255,200,${1 - progress})`)
+            grad.addColorStop(0.5, `rgba(255,${100 + progress * 155},0,${1 - progress})`)
+            grad.addColorStop(1, 'rgba(255,0,0,0)')
+            ctx.fillStyle = grad
+            ctx.beginPath()
+            ctx.arc(ex.x, ex.y, radius * 0.7, 0, Math.PI * 2)
+            ctx.fill()
           }
 
           // Items
-          for (const it of s.items) {
-            ctx.fillStyle = it.type === 'power' ? '#4CAF50' : it.type === 'bomb' ? '#ff9800' : '#ffd700';
-            ctx.beginPath(); ctx.arc(it.x, it.y, 6, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText(it.type[0].toUpperCase(), it.x, it.y + 3); ctx.textAlign = 'left';
+          for (const item of s.items) {
+            ctx.shadowColor = item.type === 'bomb' ? '#f00' : item.type === 'power' ? '#0f0' : '#ff0'
+            ctx.shadowBlur = 10
+            ctx.fillStyle = item.type === 'bomb' ? '#f00' : item.type === 'power' ? '#0f0' : '#ff0'
+            ctx.beginPath()
+            ctx.arc(item.x, item.y, 12, 0, Math.PI * 2)
+            ctx.fill()
+            
+            // Symbol
+            ctx.fillStyle = '#fff'
+            ctx.font = 'bold 10px Arial'
+            ctx.textAlign = 'center'
+            ctx.fillText(item.type === 'bomb' ? 'B' : item.type === 'power' ? 'P' : 'S', item.x, item.y + 4)
           }
+          ctx.shadowBlur = 0
+          ctx.textAlign = 'left'
 
-          // HUD
-          ctx.fillStyle = 'rgba(0,0,0,0.6)';
-          ctx.fillRect(0, 0, W, 28);
-          ctx.fillStyle = '#ffd700'; ctx.font = 'bold 14px monospace';
-          ctx.fillText(`SCORE: ${s.score}`, 10, 20);
-          ctx.fillStyle = '#4CAF50'; ctx.font = '12px monospace';
-          ctx.fillText(`HP:${'♥'.repeat(Math.max(0, p.hp))} Bomb:${'💣'.repeat(p.bombs)} Pow:${'⭐'.repeat(p.power)}`, W - 240, 20);
+          // HUD - glassmorphism
+          ctx.fillStyle = 'rgba(0,20,40,0.7)'
+          ctx.beginPath()
+          ctx.roundRect(5, 5, W - 10, 40, 8)
+          ctx.fill()
+          
+          // Score
+          ctx.fillStyle = '#0ff'
+          ctx.font = 'bold 16px "Courier New", monospace'
+          ctx.fillText(`SCORE: ${s.score.toString().padStart(6, '0')}`, 15, 32)
+          
+          // Lives
+          ctx.fillStyle = '#f66'
+          for (let i = 0; i < Math.max(0, s.player.lives); i++) {
+            ctx.fillText('❤', W / 2 - 30 + i * 18, 32)
+          }
+          
+          // Level
+          ctx.fillStyle = '#ff0'
+          ctx.textAlign = 'right'
+          ctx.fillText(`WAVE ${s.level}`, W - 15, 32)
+          ctx.textAlign = 'left'
 
+          // Game over overlay
           if (s.gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.8)';
-            ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#ffd700'; ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', W / 2, H / 2 - 15);
-            ctx.fillStyle = '#ff6b6b'; ctx.font = '16px sans-serif';
-            ctx.fillText(`最终分数: ${s.score}`, W / 2, H / 2 + 15);
-            ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
-            ctx.fillText('点击重来重新开始', W / 2, H / 2 + 50);
-            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(0,0,0,0.85)'
+            ctx.fillRect(0, 0, W, H)
+            
+            // Game over text with glow
+            ctx.shadowColor = '#f00'
+            ctx.shadowBlur = 20
+            ctx.fillStyle = '#f66'
+            ctx.font = 'bold 42px Arial'
+            ctx.textAlign = 'center'
+            ctx.fillText('GAME OVER', W / 2, H / 2 - 30)
+            ctx.shadowBlur = 0
+            
+            ctx.fillStyle = '#fff'
+            ctx.font = '24px Arial'
+            ctx.fillText(`Final Score: ${s.score}`, W / 2, H / 2 + 20)
+            ctx.fillText(`Wave Reached: ${s.level}`, W / 2, H / 2 + 55)
+            
+            ctx.fillStyle = '#aaa'
+            ctx.font = '16px Arial'
+            ctx.fillText('Tap "Restart" to play again', W / 2, H / 2 + 100)
+            ctx.textAlign = 'left'
           }
-        });
-      } catch(e) {}
-    };
-    fn(); const id = setInterval(fn, 50);
-    return () => clearInterval(id);
-  }, [force]);
+        })
+      } catch (e) { console.error('Strikers1945 error:', e) }
+    }
+    fn()
+    const id = setInterval(fn, 35)
+    return () => clearInterval(id)
+  }, [])
 
-  const move = (dx: number, dy: number) => {
-    sRef.current = movePlayer(sRef.current, dx, dy);
-  };
-
-  const tap = (dir: string) => {
-    const s = sRef.current;
-    if (!s || s.gameOver) return;
-    if (dir === 'l') move(-5, 0);
-    else if (dir === 'r') move(5, 0);
-    else if (dir === 'u') move(0, -5);
-    else if (dir === 'd') move(0, 5);
-    else if (dir === 'fire') sRef.current = playerShootS1945(s);
-    else if (dir === 'bomb') sRef.current = s1945UseBomb(s);
-  };
+  const handleKey = (dir: string, pressed: boolean) => {
+    if (pressed) {
+      keysRef.current.add(dir)
+    } else {
+      keysRef.current.delete(dir)
+    }
+    const s = sRef.current
+    if (!s || s.gameOver) return
+    if (dir === 'l') sRef.current = movePlayer(s, -8, 0)
+    else if (dir === 'r') sRef.current = movePlayer(s, 8, 0)
+    else if (dir === 'u') sRef.current = movePlayer(s, 0, -8)
+    else if (dir === 'd') sRef.current = movePlayer(s, 0, 8)
+    else if (dir === 'fire') sRef.current = playerShootS1945(s)
+    else if (dir === 'bomb') sRef.current = s1945UseBomb(s)
+  }
 
   return (
     <View className='game-body arcade-bg'>
@@ -985,20 +1128,22 @@ function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
       <LandscapeHint />
       {(() => { const cs = getCanvasSize(400, 600); return <Canvas id='strikersCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#1a3a5c;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
-        <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>重来</Text></View></View>
         <View className='ctrl-row'>
-          <View className='ctrl-btn' onTap={() => tap('l')}>◀</View>
-          <View className='ctrl-btn ctrl-fire' onTap={() => tap('fire')}>●</View>
-          <View className='ctrl-btn' onTap={() => tap('r')}>▶</View>
+          <View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>🔄 重来</Text></View>
         </View>
         <View className='ctrl-row'>
-          <View className='ctrl-btn' onTap={() => tap('bomb')}>💣</View>
-          <View className='ctrl-btn' onTap={() => tap('d')}>▼</View>
-          <View className='ctrl-btn' onTap={() => tap('u')}>▲</View>
+          <View className='ctrl-btn' onTouchStart={() => handleKey('l', true)} onTouchEnd={() => handleKey('l', false)}>◀</View>
+          <View className='ctrl-btn ctrl-fire' onTap={() => handleKey('fire', true)}>🔫</View>
+          <View className='ctrl-btn' onTouchStart={() => handleKey('r', true)} onTouchEnd={() => handleKey('r', false)}>▶</View>
+        </View>
+        <View className='ctrl-row'>
+          <View className='ctrl-btn' onTap={() => handleKey('bomb', true)}>💣</View>
+          <View className='ctrl-btn' onTouchStart={() => handleKey('d', true)} onTouchEnd={() => handleKey('d', false)}>▼</View>
+          <View className='ctrl-btn' onTouchStart={() => handleKey('u', true)} onTouchEnd={() => handleKey('u', false)}>▲</View>
         </View>
       </View>
     </View>
-  );
+  )
 }
 
 // ============================================================================

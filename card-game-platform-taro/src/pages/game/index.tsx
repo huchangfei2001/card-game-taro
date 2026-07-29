@@ -5,6 +5,29 @@ import { TaroCard } from '../../components/TaroCard'
 import { GAME_LIST } from '../../utils/gameList'
 import { useUser } from '../../utils/UserContext'
 
+// Mobile responsive helpers
+const getScreenWidth = () => {
+  try {
+    const info = Taro.getSystemInfoSync()
+    return info.windowWidth || 375
+  } catch {
+    return 375
+  }
+}
+
+const getCardSize = () => {
+  const w = getScreenWidth()
+  if (w < 350) return 44
+  if (w < 400) return 52
+  return 60
+}
+
+const getCanvasSize = (baseWidth: number, baseHeight: number) => {
+  const w = getScreenWidth()
+  const scale = Math.min(1, (w - 20) / baseWidth)
+  return { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) }
+}
+
 // Correct engine imports
 import { initBj, placeBet, hit, stand } from '../../games/blackjack/blackjackEngine'
 import type { BjState } from '../../games/blackjack/blackjackEngine'
@@ -277,7 +300,7 @@ function TetrisCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🧱 俄罗斯方块</Text></View>
-      <Canvas id='tetCanvas' className='arcade-canvas' style={`width:240px;height:480px;background:#0a0a0a;border:2px solid #333`} />
+      {(() => { const cs = getCanvasSize(240, 480); return <Canvas id='tetCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#0a0a0a;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={tap.bind(null,'u')}>⟳</View></View>
         <View className='ctrl-row'>
@@ -436,7 +459,7 @@ function TankCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🔫 坦克大战</Text></View>
-      <Canvas id='tankCanvas' className='arcade-canvas' style={`width:416px;height:450px;background:#1a1a1a;border:2px solid #333`} />
+      {(() => { const cs = getCanvasSize(416, 450); return <Canvas id='tankCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#1a1a1a;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={() => dirTap('u')}>▲</View></View>
         <View className='ctrl-row'>
@@ -596,7 +619,7 @@ function PacmanCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>😮 吃豆人</Text></View>
-      <Canvas id='pacCanvas' className='arcade-canvas' style={`width:364px;height:400px;background:#000;border:2px solid #0033aa`} />
+      {(() => { const cs = getCanvasSize(364, 400); return <Canvas id='pacCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#000;border:2px solid #0033aa`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={() => dirTap('up')}>▲</View></View>
         <View className='ctrl-row'>
@@ -733,7 +756,7 @@ function PuzzleBobbleCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🫧 泡泡龙</Text></View>
-      <Canvas id='bobbleCanvas' className='arcade-canvas' style={`width:240px;height:480px;background:#000022;border:2px solid #333`} />
+      {(() => { const cs = getCanvasSize(240, 480); return <Canvas id='bobbleCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#000022;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>重来</Text></View></View>
         <View className='ctrl-row'>
@@ -909,7 +932,7 @@ function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🛩️ 打击者1945</Text></View>
-      <Canvas id='strikersCanvas' className='arcade-canvas' style={`width:400px;height:600px;background:#1a3a5c;border:2px solid #333`} />
+      {(() => { const cs = getCanvasSize(400, 600); return <Canvas id='strikersCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#1a3a5c;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>重来</Text></View></View>
         <View className='ctrl-row'>
@@ -1160,7 +1183,10 @@ function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🐍 重力贪吃蛇</Text></View>
-      <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:360px;height:500px;background:#0f0f23;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 20px rgba(78,205,196,0.3)`} />
+      {(() => {
+        const cs = getCanvasSize(360, 500)
+        return <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#0f0f23;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 20px rgba(78,205,196,0.3)`} />
+      })()}
       <View className='touch-controls snake-controls'>
         <View className='ctrl-row'>
           <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>🔄 重来</Text></View>
@@ -1438,14 +1464,17 @@ function PinballGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🎱 指尖弹球</Text></View>
-      <Canvas
-        id='pinballCanvas'
-        className='arcade-canvas'
-        style={`width:360px;height:600px;background:#1a1a2e;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 25px rgba(78,205,196,0.4)`}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      />
+      {(() => {
+        const cs = getCanvasSize(360, 600)
+        return <Canvas
+          id='pinballCanvas'
+          className='arcade-canvas'
+          style={`width:${cs.width}px;height:${cs.height}px;background:#1a1a2e;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 25px rgba(78,205,196,0.4)`}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        />
+      })()}
       <View className='touch-controls pinball-controls'>
         <View className='ctrl-row'>
           <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>🔄 重来</Text></View>
@@ -1491,13 +1520,13 @@ function BlackjackGame({ onRestart }: { onRestart: () => void }) {
       <View className='opponent-area'>
         <Text className='ai-name'>庄家 {['finished','dealer_turn'].includes(state.phase) ? `(${state.dealer.score})` : '(?)'}</Text>
         <View className='cards-row'>{state.dealer.cards.map((c, i) => (
-          <TaroCard key={i} suit={c.suit} rank={c.rank} size={56} faceDown={i === 1 && state.phase === 'playing'} />
+          <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()} faceDown={i === 1 && state.phase === 'playing'} />
         ))}</View>
       </View>
       <View className='player-area'>
         <Text className='player-name-row'>你 ({state.player.score})</Text>
         <View className='cards-row'>{state.player.cards.map((c, i) => (
-          <TaroCard key={i} suit={c.suit} rank={c.rank} size={64} />
+          <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()} />
         ))}</View>
       </View>
       <View className='action-buttons'>
@@ -1571,7 +1600,7 @@ function DouDiZhuGame({ onRestart }: { onRestart: () => void }) {
             {state.currentPlayer === 0 && <Text className='turn-indicator'>轮到你</Text>}
           </View>
           <View className='cards-row'>{state.players[0].cards.map(c => (
-            <TaroCard key={ddzKey(c)} suit={c.suit} rank={c.rank} size={60}
+            <TaroCard key={ddzKey(c)} suit={c.suit} rank={c.rank} size={getCardSize()}
               onClick={() => toggleCard(c)} selected={selected.has(ddzKey(c))} />
           ))}</View>
           <View className='action-buttons'>
@@ -1645,7 +1674,7 @@ function GuandanGame({ onRestart }: { onRestart: () => void }) {
           </View>
           {/* Sort cards by value for display */}
           <View className='cards-row'>{cards.sort((a,b) => a.rank - b.rank).map((c: Card, i: number) => (
-            <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={56}
+            <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={getCardSize()}
               onClick={() => setSelected(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n })}
               selected={selected.has(i)} />
           ))}</View>
@@ -1717,7 +1746,7 @@ function PaodekuaiGame({ onRestart }: { onRestart: () => void }) {
             {isTurn && <Text className='turn-indicator'>轮到你</Text>}
           </View>
           <View className='cards-row'>{cards.sort((a,b) => a.rank - b.rank).map((c: Card, i: number) => (
-            <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={56}
+            <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={getCardSize()}
               onClick={() => setSelected(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n })}
               selected={selected.has(i)} />
           ))}</View>
@@ -1834,7 +1863,7 @@ function ShengjiGame({ onRestart }: { onRestart: () => void }) {
           {state.phase === 'burying' && state.currentPlayer === 0 && (
             <View>
               <View className='cards-row'>{cards.sort((a,b) => a.rank - b.rank).map((c, i) => (
-                <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={56}
+                <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={getCardSize()}
                   onClick={() => setSelectedIdx(prev => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n })}
                   selected={selectedIdx.has(i)} />
               ))}</View>
@@ -1854,7 +1883,7 @@ function ShengjiGame({ onRestart }: { onRestart: () => void }) {
           {!burying && state.phase === 'playing' && (
             <>
               <View className='cards-row'>{cards.sort((a,b) => a.rank - b.rank).map((c, i) => (
-                <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={56} />
+                <TaroCard key={`${c.suit}_${c.rank}`} suit={c.suit} rank={c.rank} size={getCardSize()} />
               ))}</View>
             </>
           )}
@@ -1961,7 +1990,7 @@ function NiuniuGame({ onRestart }: { onRestart: () => void }) {
             {isResultPhase && <Text style={{color:'#ffd700',fontSize:'22px'}}>{human.niuType} ({human.niuValue})</Text>}
           </View>
           <View className='cards-row'>{humanCards.map((c: Card, i: number) => (
-            <TaroCard key={i} suit={c.suit} rank={c.rank} size={60}
+            <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()}
               faceDown={(humanCards.length > 2 && !isResultPhase)} />
           ))}</View>
           <View className='action-buttons'>
@@ -2025,7 +2054,7 @@ function ZhajinhuaGame({ onRestart }: { onRestart: () => void }) {
             {state.currentPlayer === 0 && <Text className='turn-indicator'>轮到你</Text>}
           </View>
           <View className='cards-row'>{human.cards.map((c, i) => (
-            <TaroCard key={i} suit={c.suit} rank={c.rank} size={60} faceDown={!human.seeCards} />
+            <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()} faceDown={!human.seeCards} />
           ))}</View>
           <View className='action-buttons'>
             {(state.phase === 'playing' || state.phase === 'show') && state.currentPlayer === 0 && (
@@ -2097,7 +2126,7 @@ function TexasHoldemGame({ onRestart }: { onRestart: () => void }) {
         <View className='hand-area'>
           {roundState.communityCards.length > 0 && (
             <View className='cards-row'>{roundState.communityCards.map((c, i) => (
-              <TaroCard key={'c'+i} suit={c.suit} rank={c.rank} size={52} />
+              <TaroCard key={'c'+i} suit={c.suit} rank={c.rank} size={getCardSize()} />
             ))}</View>
           )}
           <View className='player-info-row'>
@@ -2105,7 +2134,7 @@ function TexasHoldemGame({ onRestart }: { onRestart: () => void }) {
             {roundState.currentPlayer === 0 && <Text className='turn-indicator'>轮到你</Text>}
           </View>
           <View className='cards-row'>{human.cards.map((c, i) => (
-            <TaroCard key={i} suit={c.suit} rank={c.rank} size={60} />
+            <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()} />
           ))}</View>
           <View className='action-buttons'>
             {['preflop','flop','turn','river'].includes(roundState.phase) && roundState.currentPlayer === 0 && !human.folded && (
@@ -2162,7 +2191,7 @@ function SuohaGame({ onRestart }: { onRestart: () => void }) {
             {state.turn === 0 && <Text className='turn-indicator'>轮到你</Text>}
           </View>
           <View className='cards-row'>{human.cards.map((c, i) => (
-            <TaroCard key={i} suit={c.suit} rank={c.rank} size={60} />
+            <TaroCard key={i} suit={c.suit} rank={c.rank} size={getCardSize()} />
           ))}</View>
           <View className='action-buttons'>
             {state.turn === 0 && !state.finished && (

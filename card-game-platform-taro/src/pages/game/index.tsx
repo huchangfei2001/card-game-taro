@@ -2426,10 +2426,13 @@ function handStrengthText(cards: Card[]): string {
 
 function MahjongGame({ gameId, onRestart }: { gameId: string; onRestart: () => void }) {
   const [state, setState] = useState<any>(null)
+  const [selectedTile, setSelectedTile] = useState<any>(null)
+  
   useEffect(() => {
     if (gameId === 'sichuanmahjong') setState(initScMj())
     else if (gameId === 'riichimahjong') setState(initRiichi())
   }, [])
+  
   useEffect(() => {
     if (!state || state.phase === 'finished' || state.currentPlayer === 0) return
     const timer = setTimeout(() => {
@@ -2440,40 +2443,193 @@ function MahjongGame({ gameId, onRestart }: { gameId: string; onRestart: () => v
         const ai = riichiAI(state, state.currentPlayer)
         setState(riichiAction(state, state.currentPlayer, ai.action, ai.tile))
       }
-    }, 500)
+    }, 600)
     return () => clearTimeout(timer)
   }, [state])
+  
   if (!state) return <View className='game-body card-bg'><Text className='game-msg'>加载中...</Text></View>
+  
   const human = state.players?.[0]
-  const hand = human?.hand || []
+  // Sort hand tiles: by suit (wan, tong, tiao, zi), then by rank
+  const hand = (human?.hand || []).slice().sort((a: any, b: any) => {
+    const suitOrder: Record<string, number> = { wan: 0, tong: 1, tiao: 2, zi: 3 }
+    const aSuit = suitOrder[a.sub] ?? 4
+    const bSuit = suitOrder[b.sub] ?? 4
+    if (aSuit !== bSuit) return aSuit - bSuit
+    return (a.rank || 0) - (b.rank || 0)
+  })
+  
+  // Get player's actions (chi/peng/gang)
+  const actions = state.playerActions?.[0] || {}
+  
   const DISCARD_ICONS = ['','一','二','三','四','五','六','七','八','九']
   const SUIT_SYMBOLS: Record<string, string> = { wan: '万', tong: '筒', tiao: '条', zi: '字' }
+  
+  const handleTileClick = (tile: any, index: number) => {
+    if (state.currentPlayer !== 0) return
+    if (selectedTile) {
+      // Already selected - check for peng/gang
+      if (actions.peng && canPeng(selectedTile, tile)) {
+        setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'peng', tile) : riichiAction(state, 0, 'peng', tile))
+        setSelectedTile(null)
+        return
+      }
+      if (actions.gang && canGang(selectedTile, tile)) {
+        setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'gang', tile) : riichiAction(state, 0, 'gang', tile))
+        setSelectedTile(null)
+        return
+      }
+      setSelectedTile(null)
+    } else {
+      setSelectedTile({ tile, index })
+    }
+  }
+  
+  const canPeng = (t1: any, t2: any) => {
+    if (!t1 || !t2) return false
+    // Same suit and rank, or can form a pair
+    if (t1.sub === t2.sub && t1.rank === t2.rank) return true
+    // Check for chi - 3 consecutive tiles
+    return false
+  }
+  
+  const canGang = (t1: any, t2: any) => {
+    if (!t1 || !t2) return false
+    return t1.sub === t2.sub && t1.rank === t2.rank
+  }
+  
+  const handleDiscard = (tile: any) => {
+    setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'discard', tile) : riichiAction(state, 0, 'discard', tile))
+    setSelectedTile(null)
+  }
+  
+  const handleChi = () => {
+    if (!selectedTile?.tile || !actions.chi) return
+    // For simplicity, auto-select first chi option
+    const chiTiles = actions.chi[0]?.tiles || []
+    if (chiTiles.length >= 2) {
+      setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'chi', chiTiles) : riichiAction(state, 0, 'chi', chiTiles))
+      setSelectedTile(null)
+    }
+  }
+  
+  const handlePong = () => {
+    if (!selectedTile?.tile || !actions.peng) return
+    setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'peng', selectedTile.tile) : riichiAction(state, 0, 'peng', selectedTile.tile))
+    setSelectedTile(null)
+  }
+  
+  const handleGang = () => {
+    // Check for existing gang from hand
+    if (!actions.gang) return
+    // Find a tile we can gang
+    const gangTile = hand.find((t: any, i: number) => {
+      return hand.filter((t2: any, j: number) => i !== j && t.sub === t2.sub && t.rank === t2.rank).length >= 2
+    })
+    if (gangTile) {
+      setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'gang', gangTile) : riichiAction(state, 0, 'gang', gangTile))
+      setSelectedTile(null)
+    }
+  }
+  
+  const handleHu = () => {
+    if (!actions.hu) return
+    setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'hu', null) : riichiAction(state, 0, 'hu', null))
+  }
+  
   return (
     <View className='game-body card-bg'>
       <View className='game-header-bar'><Text className='game-title'>{gameId === 'sichuanmahjong' ? '🀄 四川血战到底' : '🎋 日本立直麻将'}</Text></View>
       {state.message && <Text className='game-msg'>{state.message}</Text>}
+      
+      {/* Other players */}
       <View className='ddz-top-row'>
-        {state.players?.slice(1)?.map((p, i) => (
-          <View key={i} className='ai-player'><Text className='ai-name'>{p.name}</Text>
-            <Text className='card-count'>牌: {p.hand?.length || '?'} 张</Text></View>
+        {state.players?.slice(1)?.map((p: any, i: number) => (
+          <View key={i} className='ai-player'>
+            <Text className='ai-name'>{p.name}</Text>
+            <Text className='card-count'>牌: {p.hand?.length || '?'} 张 {p.melds?.length > 0 && ` (明牌${p.melds.length}组)`}</Text>
+          </View>
         ))}
       </View>
+      
+      {/* River / Discard pile */}
+      {state.river && state.river.length > 0 && (
+        <View className='discard-area'>
+          <Text className='discard-label'>🗑️ 弃牌区 ({state.river.length})</Text>
+          <View className='discard-tiles'>
+            {state.river.slice(-10).map((t: any, i: number) => (
+              <View key={i} className='discard-tile'>
+                <Text>{DISCARD_ICONS[t.rank] || ''}{SUIT_SYMBOLS[t.sub] || ''}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      
+      {/* Player's melds (shown cards) */}
+      {human?.melds && human.melds.length > 0 && (
+        <View className='melds-area'>
+          <Text className='meld-label'>📋 明牌</Text>
+          <View className='meld-tiles'>
+            {human.melds.map((meld: any, i: number) => (
+              <View key={i} className='meld-group'>
+                {meld.tiles?.map((t: any, j: number) => (
+                  <Text key={j} className='meld-tile-text'>{DISCARD_ICONS[t.rank] || ''}{SUIT_SYMBOLS[t.sub] || ''}</Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      
       <View className='hand-area'>
         <View className='player-info-row'>
           <Text className='player-name'>{human?.name || '你'}</Text>
           {state.currentPlayer === 0 && <Text className='turn-indicator'>轮到你</Text>}
         </View>
+        
+        {/* Hand tiles - sorted */}
         <View className='tiles-row'>
           {hand.map((t: any, i: number) => (
-            <View key={i} className='mahjong-tile' onTap={() => {
-              if (state.currentPlayer !== 0) return
-              setState(gameId === 'sichuanmahjong' ? scmjAction(state, 0, 'discard', t) : riichiAction(state, 0, 'discard', t))
-            }}>
+            <View 
+              key={i} 
+              className={`mahjong-tile ${selectedTile?.index === i ? 'tile-selected' : ''}`} 
+              onTap={() => handleTileClick(t, i)}
+            >
               <Text>{DISCARD_ICONS[t.rank] || t.display || ''}{SUIT_SYMBOLS[t.sub] || ''}</Text>
             </View>
           ))}
         </View>
+        
+        {/* Action buttons */}
+        {state.currentPlayer === 0 && (
+          <View className='mahjong-actions'>
+            {selectedTile && (
+              <>
+                {actions.peng && canPeng(selectedTile.tile, selectedTile.tile) && (
+                  <View className='action-btn action-peng' onTap={handlePong}><Text>🔨 碰</Text></View>
+                )}
+                {actions.gang && canGang(selectedTile.tile, selectedTile.tile) && (
+                  <View className='action-btn action-gang' onTap={handleGang}><Text>🔗 杠</Text></View>
+                )}
+              </>
+            )}
+            {actions.chi && (
+              <View className='action-btn action-chi' onTap={handleChi}><Text>🍜 吃</Text></View>
+            )}
+            {actions.gang && (
+              <View className='action-btn action-gang' onTap={handleGang}><Text>🔗 暗杠</Text></View>
+            )}
+            {actions.hu && (
+              <View className='action-btn action-hu' onTap={handleHu}><Text>🎉 胡</Text></View>
+            )}
+            <View className='action-btn action-discard' onTap={() => selectedTile && handleDiscard(selectedTile.tile)}>
+              <Text>💣 打牌</Text>
+            </View>
+          </View>
+        )}
       </View>
+      
       {state.phase === 'finished' && (
         <View className='action-buttons'>
           <View className='btn-game btn-gold' onTap={onRestart}><Text>再来一局</Text></View>

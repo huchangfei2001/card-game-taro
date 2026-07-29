@@ -5,6 +5,27 @@ import { TaroCard } from '../../components/TaroCard'
 import { GAME_LIST } from '../../utils/gameList'
 import { useUser } from '../../utils/UserContext'
 
+// Landscape mode warning component
+function LandscapeHint() {
+  const [show, setShow] = useState(false)
+  
+  useEffect(() => {
+    const check = () => setShow(getScreenWidth() < getScreenHeight())
+    check()
+    const h = Taro.onResize?.(() => check())
+    return () => { if (h) Taro.offResize?.(h) }
+  }, [])
+  
+  if (!show) return null
+  
+  return (
+    <View className='landscape-hint'>
+      <Text className='hint-icon'>📱</Text>
+      <Text className='hint-text'>请横屏体验更佳</Text>
+    </View>
+  )
+}
+
 // Mobile responsive helpers
 const getScreenWidth = () => {
   try {
@@ -13,6 +34,19 @@ const getScreenWidth = () => {
   } catch {
     return 375
   }
+}
+
+const getScreenHeight = () => {
+  try {
+    const info = Taro.getSystemInfoSync()
+    return info.windowHeight || 667
+  } catch {
+    return 667
+  }
+}
+
+const isLandscape = () => {
+  return getScreenWidth() > getScreenHeight()
 }
 
 const getCardSize = () => {
@@ -24,6 +58,18 @@ const getCardSize = () => {
 
 const getCanvasSize = (baseWidth: number, baseHeight: number) => {
   const w = getScreenWidth()
+  const h = getScreenHeight()
+  const isLand = isLandscape()
+  
+  // Landscape: use more width, limit height
+  if (isLand) {
+    const maxWidth = w - 20
+    const maxHeight = h - 200
+    const scale = Math.min(maxWidth / baseWidth, maxHeight / baseHeight)
+    return { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) }
+  }
+  
+  // Portrait: fit width
   const scale = Math.min(1, (w - 20) / baseWidth)
   return { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) }
 }
@@ -300,6 +346,7 @@ function TetrisCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🧱 俄罗斯方块</Text></View>
+      <LandscapeHint />
       {(() => { const cs = getCanvasSize(240, 480); return <Canvas id='tetCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#0a0a0a;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={tap.bind(null,'u')}>⟳</View></View>
@@ -459,6 +506,7 @@ function TankCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🔫 坦克大战</Text></View>
+      <LandscapeHint />
       {(() => { const cs = getCanvasSize(416, 450); return <Canvas id='tankCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#1a1a1a;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={() => dirTap('u')}>▲</View></View>
@@ -619,6 +667,7 @@ function PacmanCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>😮 吃豆人</Text></View>
+      <LandscapeHint />
       {(() => { const cs = getCanvasSize(364, 400); return <Canvas id='pacCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#000;border:2px solid #0033aa`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn' onTap={() => dirTap('up')}>▲</View></View>
@@ -756,6 +805,7 @@ function PuzzleBobbleCanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🫧 泡泡龙</Text></View>
+      <LandscapeHint />
       {(() => { const cs = getCanvasSize(240, 480); return <Canvas id='bobbleCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#000022;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>重来</Text></View></View>
@@ -932,6 +982,7 @@ function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🛩️ 打击者1945</Text></View>
+      <LandscapeHint />
       {(() => { const cs = getCanvasSize(400, 600); return <Canvas id='strikersCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#1a3a5c;border:2px solid #333`} /> })()}
       <View className='touch-controls'>
         <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={onRestart}><Text>重来</Text></View></View>
@@ -1183,6 +1234,7 @@ function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🐍 重力贪吃蛇</Text></View>
+      <LandscapeHint />
       {(() => {
         const cs = getCanvasSize(360, 500)
         return <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:${cs.width}px;height:${cs.height}px;background:#0f0f23;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 20px rgba(78,205,196,0.3)`} />
@@ -1464,6 +1516,7 @@ function PinballGame({ onRestart }: { onRestart: () => void }) {
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🎱 指尖弹球</Text></View>
+      <LandscapeHint />
       {(() => {
         const cs = getCanvasSize(360, 600)
         return <Canvas

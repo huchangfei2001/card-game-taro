@@ -52,6 +52,8 @@ import { initPuzzleBobble, setAngle, shootBobble, tickPuzzleBobble } from '../..
 import type { Bobble, PuzzleBobbleState } from '../../games/arcade/puzzlebobbleEngine'
 import { initS1945, movePlayer, playerShootS1945, tickS1945, useBomb as s1945UseBomb } from '../../games/arcade/strikers1945Engine'
 import type { S1945State, Bullet as SBullet, Enemy as SEnemy, Item as SItem } from '../../games/arcade/strikers1945Engine'
+import { initGravitySnake, setGravity, tickGravitySnake, pauseGravitySnake, restartGravitySnake, type GravitySnakeState } from '../../games/arcade/gravitySnakeEngine'
+import { initPinball, startDrawing, updateDrawing, endDrawing, tickPinball, clearLines, pausePinball, nextLevel, restartPinball, type PinballState } from '../../games/arcade/pinballEngine'
 import type { Card } from '../../types'
 import './index.scss'
 
@@ -926,6 +928,322 @@ function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
 }
 
 // ============================================================================
+// GRAVITY SNAKE - Gravity-controlled snake game
+// ============================================================================
+
+function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
+  const [, force] = useState(0)
+  const sRef = useRef<GravitySnakeState>(initGravitySnake())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = sRef.current;
+      if (!s || s.gameOver) return;
+      sRef.current = tickGravitySnake(s);
+      force(n => n + 1);
+    }, 100);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const fn = () => {
+      try {
+        const q = Taro.createSelectorQuery();
+        q.select('#snakeCanvas').node().exec((res: any) => {
+          if (!res?.[0]?.node) return;
+          const canvas = res[0].node;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          const W = canvas.width, H = canvas.height;
+          const s = sRef.current;
+          const GW = s.gridWidth, GH = s.gridHeight;
+          const CELL = Math.min(W / GW, H / GH) - 2;
+
+          // Background
+          ctx.fillStyle = '#0d1117';
+          ctx.fillRect(0, 0, W, H);
+
+          // Grid lines
+          ctx.strokeStyle = '#21262d';
+          ctx.lineWidth = 1;
+          for (let i = 0; i <= GW; i++) {
+            ctx.beginPath();
+            ctx.moveTo(i * (CELL + 2) + 20, 20);
+            ctx.lineTo(i * (CELL + 2) + 20, GH * (CELL + 2) + 20);
+            ctx.stroke();
+          }
+          for (let i = 0; i <= GH; i++) {
+            ctx.beginPath();
+            ctx.moveTo(20, i * (CELL + 2) + 20);
+            ctx.lineTo(GW * (CELL + 2) + 20, i * (CELL + 2) + 20);
+            ctx.stroke();
+          }
+
+          // Food
+          ctx.fillStyle = '#ff6b6b';
+          ctx.beginPath();
+          ctx.arc(
+            s.food.x * (CELL + 2) + 20 + CELL / 2 + 1,
+            s.food.y * (CELL + 2) + 20 + CELL / 2 + 1,
+            CELL / 2, 0, Math.PI * 2
+          );
+          ctx.fill();
+
+          // Snake body
+          s.snake.forEach((seg, i) => {
+            ctx.fillStyle = i === 0 ? '#4ecdc4' : '#45b7d1';
+            ctx.fillRect(
+              seg.x * (CELL + 2) + 21,
+              seg.y * (CELL + 2) + 21,
+              CELL, CELL
+            );
+          });
+
+          // Gravity indicator
+          const gX = s.gravity === 'left' ? -1 : s.gravity === 'right' ? 1 : 0;
+          const gY = s.gravity === 'up' ? -1 : s.gravity === 'down' ? 1 : 0;
+          ctx.fillStyle = '#ffd93d';
+          ctx.font = '20px Arial';
+          ctx.fillText(`⬆️⬇️⬅️→`, W - 100, 30);
+          ctx.font = 'bold 24px Arial';
+          const arrow = gY < 0 ? '⬆️' : gY > 0 ? '⬇️' : gX < 0 ? '⬅️' : gX > 0 ? '➡️' : '⬆️';
+          ctx.fillText(arrow, W / 2 - 15, 30);
+
+          // Score
+          ctx.fillStyle = '#fff';
+          ctx.font = '18px Arial';
+          ctx.fillText(`得分: ${s.score}`, 20, H - 15);
+          ctx.fillText(`等级: ${s.level}`, W - 100, H - 15);
+
+          // Game over
+          if (s.gameOver) {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = 'bold 36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('游戏结束!', W / 2, H / 2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Arial';
+            ctx.fillText(`最终得分: ${s.score}`, W / 2, H / 2 + 40);
+            ctx.textAlign = 'left';
+          }
+        });
+      } catch (e) { console.error('Snake draw error:', e); }
+    };
+    fn();
+  });
+
+  const tap = (dir: 'up' | 'down' | 'left' | 'right') => {
+    sRef.current = setGravity(sRef.current, dir);
+  };
+
+  const restart = () => {
+    sRef.current = restartGravitySnake();
+    force(n => n + 1);
+  };
+
+  return (
+    <View className='game-body arcade-bg'>
+      <View className='info-bar'><Text className='gold-text'>🐍 重力贪吃蛇</Text></View>
+      <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:360px;height:500px;background:#0d1117;border:2px solid #333`} />
+      <View className='touch-controls'>
+        <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>重来</Text></View></View>
+        <View className='ctrl-row'>
+          <View className='ctrl-btn' onTap={() => tap('up')}>⬆️</View>
+        </View>
+        <View className='ctrl-row'>
+          <View className='ctrl-btn' onTap={() => tap('left')}>⬅️</View>
+          <View className='ctrl-btn' onTap={() => tap('down')}>⬇️</View>
+          <View className='ctrl-btn' onTap={() => tap('right')}>➡️</View>
+        </View>
+        <View className='ctrl-hint'><Text>点击方向按钮改变重力方向</Text></View>
+      </View>
+    </View>
+  );
+}
+
+// ============================================================================
+// FINGER PINBALL - Draw lines for ball to bounce
+// ============================================================================
+
+function PinballGame({ onRestart }: { onRestart: () => void }) {
+  const [, force] = useState(0)
+  const sRef = useRef<PinballState>(initPinball(1))
+  const lastTouch = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const s = sRef.current;
+      if (!s || s.gameOver || s.won) return;
+      sRef.current = tickPinball(s);
+      force(n => n + 1);
+    }, 30);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const fn = () => {
+      try {
+        const q = Taro.createSelectorQuery();
+        q.select('#pinballCanvas').node().exec((res: any) => {
+          if (!res?.[0]?.node) return;
+          const canvas = res[0].node;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return;
+          const W = canvas.width, H = canvas.height;
+          const s = sRef.current;
+
+          // Background gradient
+          const grad = ctx.createLinearGradient(0, 0, 0, H);
+          grad.addColorStop(0, '#1a1a2e');
+          grad.addColorStop(1, '#16213e');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, W, H);
+
+          // Start zone
+          ctx.fillStyle = '#2d6a4f';
+          ctx.fillRect(s.startPoint.x - 20, s.startPoint.y - 10, 40, 20);
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Arial';
+          ctx.fillText('起点', s.startPoint.x - 15, s.startPoint.y + 5);
+
+          // End zone (goal)
+          ctx.fillStyle = '#f9c74f';
+          ctx.beginPath();
+          ctx.arc(s.endPoint.x, s.endPoint.y, 25, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('终点', s.endPoint.x, s.endPoint.y + 5);
+          ctx.textAlign = 'left';
+
+          // Drawn lines
+          ctx.strokeStyle = '#4ecdc4';
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
+          s.lines.forEach(line => {
+            ctx.beginPath();
+            ctx.moveTo(line.start.x, line.start.y);
+            ctx.lineTo(line.end.x, line.end.y);
+            ctx.stroke();
+          });
+
+          // Current drawing line
+          if (s.drawing && s.currentLine) {
+            ctx.strokeStyle = '#ffd93d';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(s.currentLine.start.x, s.currentLine.start.y);
+            ctx.lineTo(s.currentLine.end.x, s.currentLine.end.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          // Ball
+          ctx.fillStyle = '#ff6b6b';
+          ctx.beginPath();
+          ctx.arc(s.ball.x, s.ball.y, s.ball.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Score and level
+          ctx.fillStyle = '#fff';
+          ctx.font = '16px Arial';
+          ctx.fillText(`分数: ${s.score}`, 10, 25);
+          ctx.fillText(`关卡: ${s.level}`, W - 80, 25);
+
+          // Game over / Win
+          if (s.gameOver || s.won) {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = s.won ? '#4ecdc4' : '#ff6b6b';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(s.won ? '🎉 过关!' : '💥 失败!', W / 2, H / 2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '18px Arial';
+            ctx.fillText(`得分: ${s.score}`, W / 2, H / 2 + 35);
+            ctx.textAlign = 'left';
+          }
+        });
+      } catch (e) { console.error('Pinball draw error:', e); }
+    };
+    fn();
+  });
+
+  const handleTouchStart = (e: any) => {
+    const t = e.touches[0];
+    if (!t) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = t.clientX - rect.left;
+    const y = t.clientY - rect.top;
+    lastTouch.current = { x, y };
+    sRef.current = startDrawing(sRef.current, { x, y });
+    force(n => n + 1);
+  };
+
+  const handleTouchMove = (e: any) => {
+    const t = e.touches[0];
+    if (!t || !lastTouch.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = t.clientX - rect.left;
+    const y = t.clientY - rect.top;
+    sRef.current = updateDrawing(sRef.current, { x, y });
+    force(n => n + 1);
+  };
+
+  const handleTouchEnd = () => {
+    if (lastTouch.current) {
+      sRef.current = endDrawing(sRef.current);
+      lastTouch.current = null;
+      force(n => n + 1);
+    }
+  };
+
+  const clearLines = () => {
+    sRef.current = clearLines(sRef.current);
+    force(n => n + 1);
+  };
+
+  const restart = () => {
+    sRef.current = restartPinball();
+    force(n => n + 1);
+  };
+
+  const next = () => {
+    sRef.current = nextLevel(sRef.current);
+    force(n => n + 1);
+  };
+
+  const s = sRef.current;
+  return (
+    <View className='game-body arcade-bg'>
+      <View className='info-bar'><Text className='gold-text'>🎱 指尖弹球</Text></View>
+      <Canvas
+        id='pinballCanvas'
+        className='arcade-canvas'
+        style={`width:360px;height:600px;background:#1a1a2e;border:2px solid #333`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      />
+      <View className='touch-controls'>
+        <View className='ctrl-row'>
+          <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>重来</Text></View>
+          <View className='ctrl-btn btn-game' onTap={clearLines}><Text>清线</Text></View>
+          {s.won && <View className='ctrl-btn btn-game btn-green' onTap={next}><Text>下一关</Text></View>}
+        </View>
+        <View className='ctrl-hint'><Text>在屏幕上画线，让球弹到终点</Text></View>
+      </View>
+    </View>
+  );
+}
+
+// ============================================================================
 // ARCADE COMBINATOR
 // ============================================================================
 
@@ -936,6 +1254,8 @@ function ArcadeGame({ gameId, onRestart }: { gameId: string; onRestart: () => vo
     case 'pacman': return <PacmanCanvasGame onRestart={onRestart} />;
     case 'puzzlebobble': return <PuzzleBobbleCanvasGame onRestart={onRestart} />;
     case 'strikers1945': return <Strikers1945CanvasGame onRestart={onRestart} />;
+    case 'gravitysnake': return <GravitySnakeGame onRestart={onRestart} />;
+    case 'pinball': return <PinballGame onRestart={onRestart} />;
     default: return <View className='game-body arcade-bg'><Text className='game-msg'>{gameId} - 开发中</Text></View>;
   }
 }
@@ -2008,6 +2328,8 @@ export default function GamePage() {
       case 'pacman': return <ArcadeGame gameId='pacman' onRestart={restart} />
       case 'puzzlebobble': return <ArcadeGame gameId='puzzlebobble' onRestart={restart} />
       case 'strikers1945': return <ArcadeGame gameId='strikers1945' onRestart={restart} />
+      case 'gravitysnake': return <ArcadeGame gameId='gravitysnake' onRestart={restart} />
+      case 'pinball': return <ArcadeGame gameId='pinball' onRestart={restart} />
 
       // --- Board games ---
       case 'chess': return <ChessGame onRestart={restart} />

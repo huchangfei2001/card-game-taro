@@ -32,6 +32,8 @@ export const GAME_LIST: GameInfo[] = [
   { id: 'pacman', name: 'Pac-Man', nameCn: '吃豆人', desc: '经典吃豆人', players: '1人', category: 'arcade', icon: '😮' },
   { id: 'puzzlebobble', name: 'Puzzle Bobble', nameCn: '泡泡龙', desc: '经典泡泡龙', players: '1-2人', category: 'arcade', icon: '🫧' },
   { id: 'strikers1945', name: 'Strikers 1945', nameCn: '打击者1945', desc: '经典纵版射击', players: '1-2人', category: 'arcade', icon: '🛩️' },
+  { id: 'gravitysnake', name: 'Gravity Snake', nameCn: '重力贪吃蛇', desc: '旋转手机控制贪吃蛇', players: '1人', category: 'arcade', icon: '🐍' },
+  { id: 'pinball', name: 'Finger Pinball', nameCn: '指尖弹球', desc: '画线让球弹到终点', players: '1人', category: 'arcade', icon: '🎱' },
   { id: 'sichuanmahjong', name: 'Sichuan Mahjong', nameCn: '四川血战到底', desc: '四川血战麻将', players: '4人', category: 'mahjong', icon: '🀄' },
   { id: 'riichimahjong', name: 'Riichi Mahjong', nameCn: '日本立直麻将', desc: '日本立直麻将', players: '4人', category: 'mahjong', icon: '🎋' },
 ]

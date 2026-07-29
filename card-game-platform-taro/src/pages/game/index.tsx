@@ -928,18 +928,29 @@ function Strikers1945CanvasGame({ onRestart }: { onRestart: () => void }) {
 }
 
 // ============================================================================
-// GRAVITY SNAKE - Gravity-controlled snake game
+// GRAVITY SNAKE - Gravity-controlled snake game (Enhanced UI)
 // ============================================================================
 
 function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
   const [, force] = useState(0)
   const sRef = useRef<GravitySnakeState>(initGravitySnake())
+  const particlesRef = useRef<{x: number, y: number, vx: number, vy: number, life: number, color: string}[]>([])
+  const frameRef = useRef(0)
 
   useEffect(() => {
     const id = setInterval(() => {
       const s = sRef.current;
       if (!s || s.gameOver) return;
       sRef.current = tickGravitySnake(s);
+      frameRef.current++;
+      if (frameRef.current % 5 === 0) {
+        particlesRef.current = particlesRef.current.filter(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life--;
+          return p.life > 0;
+        });
+      }
       force(n => n + 1);
     }, 100);
     return () => clearInterval(id);
@@ -957,75 +968,161 @@ function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
           const W = canvas.width, H = canvas.height;
           const s = sRef.current;
           const GW = s.gridWidth, GH = s.gridHeight;
-          const CELL = Math.min(W / GW, H / GH) - 2;
+          const CELL = Math.min(W / GW, H / GH) - 3;
+          const OX = (W - GW * (CELL + 3)) / 2;
+          const OY = 50;
 
-          // Background
-          ctx.fillStyle = '#0d1117';
+          // Gradient background
+          const grad = ctx.createLinearGradient(0, 0, 0, H);
+          grad.addColorStop(0, '#0f0f23');
+          grad.addColorStop(1, '#1a1a3e');
+          ctx.fillStyle = grad;
           ctx.fillRect(0, 0, W, H);
 
-          // Grid lines
-          ctx.strokeStyle = '#21262d';
+          // Animated grid background
+          ctx.strokeStyle = 'rgba(100, 100, 150, 0.15)';
           ctx.lineWidth = 1;
           for (let i = 0; i <= GW; i++) {
             ctx.beginPath();
-            ctx.moveTo(i * (CELL + 2) + 20, 20);
-            ctx.lineTo(i * (CELL + 2) + 20, GH * (CELL + 2) + 20);
+            ctx.moveTo(OX + i * (CELL + 3), OY);
+            ctx.lineTo(OX + i * (CELL + 3), OY + GH * (CELL + 3));
             ctx.stroke();
           }
           for (let i = 0; i <= GH; i++) {
             ctx.beginPath();
-            ctx.moveTo(20, i * (CELL + 2) + 20);
-            ctx.lineTo(GW * (CELL + 2) + 20, i * (CELL + 2) + 20);
+            ctx.moveTo(OX, OY + i * (CELL + 3));
+            ctx.lineTo(OX + GW * (CELL + 3), OY + i * (CELL + 3));
             ctx.stroke();
           }
 
-          // Food
-          ctx.fillStyle = '#ff6b6b';
+          // Particles
+          particlesRef.current.forEach(p => {
+            ctx.globalAlpha = p.life / 30;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.globalAlpha = 1;
+
+          // Pulsing food with glow
+          const pulse = Math.sin(frameRef.current * 0.15) * 0.2 + 1;
+          ctx.shadowColor = '#ff4757';
+          ctx.shadowBlur = 15 * pulse;
+          ctx.fillStyle = '#ff4757';
           ctx.beginPath();
           ctx.arc(
-            s.food.x * (CELL + 2) + 20 + CELL / 2 + 1,
-            s.food.y * (CELL + 2) + 20 + CELL / 2 + 1,
-            CELL / 2, 0, Math.PI * 2
+            OX + s.food.x * (CELL + 3) + CELL / 2 + 1.5,
+            OY + s.food.y * (CELL + 3) + CELL / 2 + 1.5,
+            (CELL / 2) * pulse, 0, Math.PI * 2
           );
           ctx.fill();
+          ctx.shadowBlur = 0;
 
-          // Snake body
+          // Snake body with gradient and glow
           s.snake.forEach((seg, i) => {
-            ctx.fillStyle = i === 0 ? '#4ecdc4' : '#45b7d1';
-            ctx.fillRect(
-              seg.x * (CELL + 2) + 21,
-              seg.y * (CELL + 2) + 21,
-              CELL, CELL
+            const t = i / s.snake.length;
+            const r = Math.floor(78 + t * 100);
+            const g = Math.floor(205 - t * 100);
+            const b = Math.floor(196 - t * 50);
+            
+            if (i === 0) {
+              ctx.shadowColor = '#4ecdc4';
+              ctx.shadowBlur = 12;
+              ctx.fillStyle = '#4ecdc4';
+            } else {
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            }
+            
+            ctx.beginPath();
+            ctx.roundRect(
+              OX + seg.x * (CELL + 3) + 1.5,
+              OY + seg.y * (CELL + 3) + 1.5,
+              CELL, CELL, 4
             );
+            ctx.fill();
+            
+            // Eyes on head
+            if (i === 0) {
+              ctx.fillStyle = '#fff';
+              ctx.beginPath();
+              ctx.arc(OX + seg.x * (CELL + 3) + CELL / 2, OY + seg.y * (CELL + 3) + CELL / 3, 3, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#000';
+              ctx.beginPath();
+              ctx.arc(OX + seg.x * (CELL + 3) + CELL / 2 + 1, OY + seg.y * (CELL + 3) + CELL / 3, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
           });
+          ctx.shadowBlur = 0;
 
-          // Gravity indicator
-          const gX = s.gravity === 'left' ? -1 : s.gravity === 'right' ? 1 : 0;
-          const gY = s.gravity === 'up' ? -1 : s.gravity === 'down' ? 1 : 0;
+          // Title bar with gradient
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(0, 0, W, 40);
           ctx.fillStyle = '#ffd93d';
-          ctx.font = '20px Arial';
-          ctx.fillText(`⬆️⬇️⬅️→`, W - 100, 30);
-          ctx.font = 'bold 24px Arial';
-          const arrow = gY < 0 ? '⬆️' : gY > 0 ? '⬇️' : gX < 0 ? '⬅️' : gX > 0 ? '➡️' : '⬆️';
-          ctx.fillText(arrow, W / 2 - 15, 30);
+          ctx.font = 'bold 18px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('🐍 重力贪吃蛇', W / 2, 27);
+          ctx.textAlign = 'left';
 
-          // Score
+          // Score panel
+          ctx.fillStyle = 'rgba(255,255,255,0.1)';
+          ctx.roundRect(10, 45, 100, 60, 8);
+          ctx.fill();
+          ctx.fillStyle = '#4ecdc4';
+          ctx.font = 'bold 14px Arial';
+          ctx.fillText('得分', 18, 62);
           ctx.fillStyle = '#fff';
-          ctx.font = '18px Arial';
-          ctx.fillText(`得分: ${s.score}`, 20, H - 15);
-          ctx.fillText(`等级: ${s.level}`, W - 100, H - 15);
+          ctx.font = 'bold 20px Arial';
+          ctx.fillText(`${s.score}`, 18, 85);
 
-          // Game over
+          // Level panel
+          ctx.fillStyle = 'rgba(255,255,255,0.1)';
+          ctx.beginPath();
+          ctx.roundRect(W - 110, 45, 100, 60, 8);
+          ctx.fill();
+          ctx.fillStyle = '#ffd93d';
+          ctx.font = 'bold 14px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText('等级', W - 18, 62);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 20px Arial';
+          ctx.fillText(`${s.level}`, W - 18, 85);
+          ctx.textAlign = 'left';
+
+          // Gravity direction indicator
+          const arrowMap = { up: '⬆', down: '⬇', left: '⬅', right: '➡' };
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.beginPath();
+          ctx.roundRect(W / 2 - 40, H - 35, 80, 28, 14);
+          ctx.fill();
+          ctx.fillStyle = '#ffd93d';
+          ctx.font = 'bold 20px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(arrowMap[s.gravity], W / 2, H - 15);
+          ctx.textAlign = 'left';
+
+          // Game over screen
           if (s.gameOver) {
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
             ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#ff6b6b';
-            ctx.font = 'bold 36px Arial';
+            
+            // Animated game over text
+            const goPulse = Math.sin(frameRef.current * 0.1) * 5;
+            ctx.fillStyle = '#ff4757';
+            ctx.font = `bold ${36 + goPulse}px Arial`;
             ctx.textAlign = 'center';
-            ctx.fillText('游戏结束!', W / 2, H / 2);
+            ctx.fillText('💥 游戏结束', W / 2, H / 2 - 30);
+            
             ctx.fillStyle = '#fff';
-            ctx.font = '20px Arial';
-            ctx.fillText(`最终得分: ${s.score}`, W / 2, H / 2 + 40);
+            ctx.font = '22px Arial';
+            ctx.fillText(`最终得分: ${s.score}`, W / 2, H / 2 + 15);
+            ctx.fillText(`到达等级: ${s.level}`, W / 2, H / 2 + 45);
+            
+            ctx.fillStyle = '#4ecdc4';
+            ctx.font = '18px Arial';
+            ctx.fillText('点击"重来"按钮重新开始', W / 2, H / 2 + 85);
             ctx.textAlign = 'left';
           }
         });
@@ -1036,28 +1133,47 @@ function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
 
   const tap = (dir: 'up' | 'down' | 'left' | 'right') => {
     sRef.current = setGravity(sRef.current, dir);
+    const s = sRef.current;
+    for (let i = 0; i < 5; i++) {
+      const head = s.snake[0];
+      const GW = s.gridWidth, GH = s.gridHeight;
+      const CELL = Math.min(360 / GW, 500 / GH) - 3;
+      const OX = (360 - GW * (CELL + 3)) / 2;
+      const OY = 50;
+      particlesRef.current.push({
+        x: OX + head.x * (CELL + 3) + CELL / 2,
+        y: OY + head.y * (CELL + 3) + CELL / 2,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 4,
+        life: 30,
+        color: '#ffd93d'
+      });
+    }
   };
 
   const restart = () => {
     sRef.current = restartGravitySnake();
+    particlesRef.current = [];
     force(n => n + 1);
   };
 
   return (
     <View className='game-body arcade-bg'>
       <View className='info-bar'><Text className='gold-text'>🐍 重力贪吃蛇</Text></View>
-      <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:360px;height:500px;background:#0d1117;border:2px solid #333`} />
-      <View className='touch-controls'>
-        <View className='ctrl-row'><View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>重来</Text></View></View>
+      <Canvas id='snakeCanvas' className='arcade-canvas' style={`width:360px;height:500px;background:#0f0f23;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 20px rgba(78,205,196,0.3)`} />
+      <View className='touch-controls snake-controls'>
         <View className='ctrl-row'>
-          <View className='ctrl-btn' onTap={() => tap('up')}>⬆️</View>
+          <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>🔄 重来</Text></View>
         </View>
         <View className='ctrl-row'>
-          <View className='ctrl-btn' onTap={() => tap('left')}>⬅️</View>
-          <View className='ctrl-btn' onTap={() => tap('down')}>⬇️</View>
-          <View className='ctrl-btn' onTap={() => tap('right')}>➡️</View>
+          <View className='ctrl-btn ctrl-sn' onTap={() => tap('up')}><Text>⬆️</Text></View>
         </View>
-        <View className='ctrl-hint'><Text>点击方向按钮改变重力方向</Text></View>
+        <View className='ctrl-row'>
+          <View className='ctrl-btn ctrl-sn' onTap={() => tap('left')}><Text>⬅️</Text></View>
+          <View className='ctrl-btn ctrl-sn' onTap={() => tap('down')}><Text>⬇️</Text></View>
+          <View className='ctrl-btn ctrl-sn' onTap={() => tap('right')}><Text>➡️</Text></View>
+        </View>
+        <View className='ctrl-hint ctrl-hint-glow'><Text>点击方向按钮改变重力方向</Text></View>
       </View>
     </View>
   );
@@ -1067,16 +1183,28 @@ function GravitySnakeGame({ onRestart }: { onRestart: () => void }) {
 // FINGER PINBALL - Draw lines for ball to bounce
 // ============================================================================
 
+// ============================================================================
+// FINGER PINBALL - Draw lines for ball to bounce (Enhanced UI)
+// ============================================================================
+
 function PinballGame({ onRestart }: { onRestart: () => void }) {
   const [, force] = useState(0)
   const sRef = useRef<PinballState>(initPinball(1))
   const lastTouch = useRef<{ x: number; y: number } | null>(null)
+  const trailRef = useRef<{x: number, y: number}[]>([])
+  const frameRef = useRef(0)
 
   useEffect(() => {
     const id = setInterval(() => {
       const s = sRef.current;
       if (!s || s.gameOver || s.won) return;
       sRef.current = tickPinball(s);
+      
+      // Add trail
+      trailRef.current.push({ x: s.ball.x, y: s.ball.y });
+      if (trailRef.current.length > 15) trailRef.current.shift();
+      
+      frameRef.current++;
       force(n => n + 1);
     }, 30);
     return () => clearInterval(id);
@@ -1094,79 +1222,163 @@ function PinballGame({ onRestart }: { onRestart: () => void }) {
           const W = canvas.width, H = canvas.height;
           const s = sRef.current;
 
-          // Background gradient
-          const grad = ctx.createLinearGradient(0, 0, 0, H);
+          // Dynamic gradient background
+          const time = frameRef.current * 0.01;
+          const grad = ctx.createLinearGradient(0, 0, Math.sin(time) * W, H);
           grad.addColorStop(0, '#1a1a2e');
-          grad.addColorStop(1, '#16213e');
+          grad.addColorStop(0.5, '#16213e');
+          grad.addColorStop(1, '#0f0f23');
           ctx.fillStyle = grad;
           ctx.fillRect(0, 0, W, H);
 
-          // Start zone
-          ctx.fillStyle = '#2d6a4f';
-          ctx.fillRect(s.startPoint.x - 20, s.startPoint.y - 10, 40, 20);
-          ctx.fillStyle = '#fff';
-          ctx.font = '12px Arial';
-          ctx.fillText('起点', s.startPoint.x - 15, s.startPoint.y + 5);
+          // Animated grid background
+          ctx.strokeStyle = 'rgba(100, 100, 150, 0.1)';
+          ctx.lineWidth = 1;
+          for (let x = 0; x < W; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x + Math.sin(time + x * 0.01) * 20, H);
+            ctx.stroke();
+          }
 
-          // End zone (goal)
-          ctx.fillStyle = '#f9c74f';
+          // Start zone with glow
+          ctx.shadowColor = '#2ecc71';
+          ctx.shadowBlur = 10;
+          ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
           ctx.beginPath();
-          ctx.arc(s.endPoint.x, s.endPoint.y, 25, 0, Math.PI * 2);
+          ctx.roundRect(s.startPoint.x - 25, s.startPoint.y - 15, 50, 30, 8);
           ctx.fill();
-          ctx.fillStyle = '#000';
-          ctx.font = 'bold 14px Arial';
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#2ecc71';
+          ctx.font = 'bold 12px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText('终点', s.endPoint.x, s.endPoint.y + 5);
+          ctx.fillText('🚀 起点', s.startPoint.x, s.startPoint.y + 5);
           ctx.textAlign = 'left';
 
-          // Drawn lines
-          ctx.strokeStyle = '#4ecdc4';
-          ctx.lineWidth = 4;
-          ctx.lineCap = 'round';
-          s.lines.forEach(line => {
+          // End zone with pulsing glow
+          const pulse = Math.sin(frameRef.current * 0.1) * 0.3 + 1;
+          ctx.shadowColor = '#f39c12';
+          ctx.shadowBlur = 25 * pulse;
+          ctx.fillStyle = `rgba(243, 156, 18, ${0.8 * pulse})`;
+          ctx.beginPath();
+          ctx.arc(s.endPoint.x, s.endPoint.y, 30 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 14px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('🎯', s.endPoint.x, s.endPoint.y + 5);
+          ctx.textAlign = 'left';
+
+          // Ball trail
+          trailRef.current.forEach((pos, i) => {
+            const alpha = i / trailRef.current.length * 0.5;
+            const size = (i / trailRef.current.length) * s.ball.radius;
+            ctx.fillStyle = `rgba(255, 107, 107, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          // Drawn lines with neon glow
+          s.lines.forEach((line, i) => {
+            ctx.shadowColor = i % 2 === 0 ? '#4ecdc4' : '#a29bfe';
+            ctx.shadowBlur = 8;
+            ctx.strokeStyle = i % 2 === 0 ? '#4ecdc4' : '#a29bfe';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(line.start.x, line.start.y);
             ctx.lineTo(line.end.x, line.end.y);
             ctx.stroke();
           });
+          ctx.shadowBlur = 0;
 
           // Current drawing line
           if (s.drawing && s.currentLine) {
             ctx.strokeStyle = '#ffd93d';
-            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 4;
+            ctx.setLineDash([8, 8]);
+            ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(s.currentLine.start.x, s.currentLine.start.y);
             ctx.lineTo(s.currentLine.end.x, s.currentLine.end.y);
             ctx.stroke();
             ctx.setLineDash([]);
+            
+            // Drawing point glow
+            ctx.shadowColor = '#ffd93d';
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#ffd93d';
+            ctx.beginPath();
+            ctx.arc(s.currentLine.start.x, s.currentLine.start.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
           }
 
-          // Ball
-          ctx.fillStyle = '#ff6b6b';
+          // Ball with gradient and glow
+          ctx.shadowColor = '#ff6b6b';
+          ctx.shadowBlur = 15;
+          const ballGrad = ctx.createRadialGradient(
+            s.ball.x - 3, s.ball.y - 3, 0,
+            s.ball.x, s.ball.y, s.ball.radius
+          );
+          ballGrad.addColorStop(0, '#fff');
+          ballGrad.addColorStop(0.3, '#ff6b6b');
+          ballGrad.addColorStop(1, '#c0392b');
+          ctx.fillStyle = ballGrad;
           ctx.beginPath();
           ctx.arc(s.ball.x, s.ball.y, s.ball.radius, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          ctx.shadowBlur = 0;
 
-          // Score and level
+          // Score and level panels
+          ctx.fillStyle = 'rgba(0,0,0,0.4)';
+          ctx.beginPath();
+          ctx.roundRect(10, 8, 80, 35, 8);
+          ctx.fill();
+          ctx.fillStyle = '#4ecdc4';
+          ctx.font = 'bold 11px Arial';
+          ctx.fillText('分数', 18, 22);
           ctx.fillStyle = '#fff';
-          ctx.font = '16px Arial';
-          ctx.fillText(`分数: ${s.score}`, 10, 25);
-          ctx.fillText(`关卡: ${s.level}`, W - 80, 25);
+          ctx.font = 'bold 16px Arial';
+          ctx.fillText(`${s.score}`, 18, 38);
 
-          // Game over / Win
+          ctx.fillStyle = 'rgba(0,0,0,0.4)';
+          ctx.beginPath();
+          ctx.roundRect(W - 90, 8, 80, 35, 8);
+          ctx.fill();
+          ctx.fillStyle = '#ffd93d';
+          ctx.font = 'bold 11px Arial';
+          ctx.textAlign = 'right';
+          ctx.fillText('关卡', W - 18, 22);
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 16px Arial';
+          ctx.fillText(`${s.level}`, W - 18, 38);
+          ctx.textAlign = 'left';
+
+          // Game over / Win screen
           if (s.gameOver || s.won) {
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
             ctx.fillRect(0, 0, W, H);
+
+            const winPulse = Math.sin(frameRef.current * 0.15) * 3;
             ctx.fillStyle = s.won ? '#4ecdc4' : '#ff6b6b';
-            ctx.font = 'bold 32px Arial';
+            ctx.font = `bold ${38 + winPulse}px Arial`;
             ctx.textAlign = 'center';
-            ctx.fillText(s.won ? '🎉 过关!' : '💥 失败!', W / 2, H / 2);
+            ctx.shadowColor = s.won ? '#4ecdc4' : '#ff6b6b';
+            ctx.shadowBlur = 20;
+            ctx.fillText(s.won ? '🎉 过关!' : '💥 失败!', W / 2, H / 2 - 40);
+            ctx.shadowBlur = 0;
+
             ctx.fillStyle = '#fff';
-            ctx.font = '18px Arial';
-            ctx.fillText(`得分: ${s.score}`, W / 2, H / 2 + 35);
+            ctx.font = '22px Arial';
+            ctx.fillText(`得分: ${s.score}`, W / 2, H / 2 + 5);
+            ctx.fillText(`关卡: ${s.level}`, W / 2, H / 2 + 35);
+
+            ctx.fillStyle = s.won ? '#ffd93d' : '#aaa';
+            ctx.font = '16px Arial';
+            ctx.fillText(s.won ? '点击"下一关"继续挑战' : '点击"重来"再试一次', W / 2, H / 2 + 80);
             ctx.textAlign = 'left';
           }
         });
@@ -1206,16 +1418,19 @@ function PinballGame({ onRestart }: { onRestart: () => void }) {
 
   const clearLines = () => {
     sRef.current = clearLines(sRef.current);
+    trailRef.current = [];
     force(n => n + 1);
   };
 
   const restart = () => {
     sRef.current = restartPinball();
+    trailRef.current = [];
     force(n => n + 1);
   };
 
   const next = () => {
     sRef.current = nextLevel(sRef.current);
+    trailRef.current = [];
     force(n => n + 1);
   };
 
@@ -1226,18 +1441,18 @@ function PinballGame({ onRestart }: { onRestart: () => void }) {
       <Canvas
         id='pinballCanvas'
         className='arcade-canvas'
-        style={`width:360px;height:600px;background:#1a1a2e;border:2px solid #333`}
+        style={`width:360px;height:600px;background:#1a1a2e;border-radius:12px;border:3px solid #4ecdc4;box-shadow:0 0 25px rgba(78,205,196,0.4)`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       />
-      <View className='touch-controls'>
+      <View className='touch-controls pinball-controls'>
         <View className='ctrl-row'>
-          <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>重来</Text></View>
-          <View className='ctrl-btn btn-game' onTap={clearLines}><Text>清线</Text></View>
-          {s.won && <View className='ctrl-btn btn-game btn-green' onTap={next}><Text>下一关</Text></View>}
+          <View className='ctrl-btn btn-game btn-gold' onTap={restart}><Text>🔄 重来</Text></View>
+          <View className='ctrl-btn btn-game' onTap={clearLines}><Text>🗑️ 清线</Text></View>
+          {s.won && <View className='ctrl-btn btn-game btn-green' onTap={next}><Text>➡️ 下一关</Text></View>}
         </View>
-        <View className='ctrl-hint'><Text>在屏幕上画线，让球弹到终点</Text></View>
+        <View className='ctrl-hint ctrl-hint-glow'><Text>👆 在屏幕上画线，让球弹到黄色目标</Text></View>
       </View>
     </View>
   );

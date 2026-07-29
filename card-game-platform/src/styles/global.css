@@ -1,0 +1,41 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0f1923;
+  --bg-secondary: #1a2a3a;
+  --bg-card: #1e3246;
+  --text-primary: #e8e6e3;
+  --text-secondary: #a0aab4;
+  --accent-gold: #c9a84c;
+  --accent-red: #e63946;
+  --accent-green: #2a9d8f;
+  --accent-blue: #457b9d;
+  --border-color: #2a3f54;
+  --btn-primary: #2a9d8f;
+  --btn-danger: #e63946;
+  --btn-warning: #e9c46a;
+}
+
+body {
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #0f1923 0%, #1a2a3a 50%, #0f1923 100%);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.btn-restart {
+  background: var(--btn-primary);
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-restart:hover { filter: brightness(1.2); transform: translateY(-1px); }

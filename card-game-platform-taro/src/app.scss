@@ -1,0 +1,66 @@
+// 全局样式变量
+page {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #1e3246;
+  --accent-gold: #c9a84c;
+  --accent-gold-light: #e9c46a;
+  --accent-green: #2ecc71;
+  --accent-blue: #3498db;
+  --accent-red: #e63946;
+  --text-primary: #f0f0f0;
+  --text-secondary: #a0a0a0;
+  --border-color: #2a2a4a;
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 28px;
+  line-height: 1.5;
+}
+
+// 通用按钮样式
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 40px;
+  border-radius: 16px;
+  font-size: 28px;
+  font-weight: 600;
+  border: none;
+  transition: all 0.2s;
+
+  &-gold {
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+    color: #1a1a2e;
+  }
+
+  &-green {
+    background: var(--accent-green);
+    color: white;
+  }
+
+  &-blue {
+    background: var(--accent-blue);
+    color: white;
+  }
+
+  &-outline {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+  }
+
+  &-disabled {
+    opacity: 0.5;
+  }
+}
+
+// 卡片样式
+.card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: 24px;
+  padding: 32px;
+}

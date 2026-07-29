@@ -1,0 +1,229 @@
+.lobby {
+  min-height: 100vh;
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.lobby h1 {
+  text-align: center;
+  font-size: 36px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #c9a84c, #e9c46a, #c9a84c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.lobby .subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+  font-size: 16px;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.game-card {
+  background: linear-gradient(145deg, #1e3246, #1a2a3a);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-gold);
+  box-shadow: 0 8px 24px rgba(201, 168, 76, 0.15);
+}
+
+.game-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.game-card h3 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.game-card .game-name-cn {
+  font-size: 14px;
+  color: var(--accent-gold);
+  margin-bottom: 8px;
+}
+
+.game-card .game-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.game-card .game-players {
+  font-size: 12px;
+  color: var(--accent-green);
+}
+
+/* Mode selector */
+.mode-select {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.btn-mode {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-mode:hover { border-color: var(--accent-gold); color: var(--text-primary); }
+.btn-mode-active {
+  background: var(--accent-gold);
+  color: #1a1a2e;
+  border-color: var(--accent-gold);
+  font-weight: 600;
+}
+
+/* Multiplayer lobby */
+.multiplayer-lobby {
+  min-height: 100vh;
+  padding: 40px 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.multiplayer-lobby h2 {
+  text-align: center;
+  font-size: 28px;
+  margin-bottom: 8px;
+  color: var(--accent-gold);
+}
+
+.mp-status {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.mp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mp-form label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.mp-form input,
+.mp-form select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+.mp-form input:focus,
+.mp-form select:focus {
+  border-color: var(--accent-gold);
+  outline: none;
+}
+
+.mp-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-mp {
+  background: var(--accent-green);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-mp:hover:not(:disabled) { filter: brightness(1.2); }
+.btn-mp:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-mp.btn-secondary {
+  background: var(--accent-blue);
+}
+
+.btn-mp.btn-back {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.room-info {
+  text-align: center;
+  padding: 20px;
+  background: rgba(201, 168, 76, 0.1);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 12px;
+  margin: 16px 0;
+}
+
+.room-id {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.room-id strong {
+  color: var(--accent-gold);
+  letter-spacing: 4px;
+}
+
+.copy-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.player-list {
+  margin: 16px 0;
+}
+
+.player-list h4 {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.player-item {
+  padding: 8px 12px;
+  background: rgba(30, 50, 70, 0.5);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.mp-error {
+  padding: 8px 12px;
+  background: rgba(230, 57, 70, 0.15);
+  border: 1px solid rgba(230, 57, 70, 0.3);
+  border-radius: 6px;
+  color: var(--accent-red);
+  font-size: 13px;
+}
